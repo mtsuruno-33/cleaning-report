@@ -24,9 +24,14 @@
         border: none !important;
       }
     }
+    input, textarea, button { -webkit-tap-highlight-color: transparent; }
 
-    input, textarea, button {
-      -webkit-tap-highlight-color: transparent;
+    /* 印刷/プレビュー共通：写真を“コンパクト”に見せる */
+    .photo-thumb {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: block;
     }
   </style>
 </head>
@@ -60,6 +65,19 @@
                  }">
               {{ state.ui.message }}
             </div>
+
+            <!-- 対応日入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">対応日入力エリア</h2>
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">対応日</span>
+                <input type="date" v-model="state.draft.date"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+              </label>
+              <p class="text-xs text-slate-500">※ 初回は当日が自動表示されます（保存データがあれば復元が優先）。</p>
+            </div>
+
+            <hr class="border-slate-200">
 
             <!-- 店舗選択エリア -->
             <div class="space-y-3">
@@ -207,7 +225,7 @@
 
                       <div class="mt-2">
                         <div v-if="item.before.dataUrl" class="rounded-xl overflow-hidden border border-slate-200">
-                          <img :src="item.before.dataUrl" alt="作業前" class="w-full h-auto block">
+                          <img :src="item.before.dataUrl" alt="作業前" class="photo-thumb">
                         </div>
                         <div v-else class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
                           画像未選択
@@ -234,7 +252,7 @@
 
                       <div class="mt-2">
                         <div v-if="item.after.dataUrl" class="rounded-xl overflow-hidden border border-slate-200">
-                          <img :src="item.after.dataUrl" alt="作業後" class="w-full h-auto block">
+                          <img :src="item.after.dataUrl" alt="作業後" class="photo-thumb">
                         </div>
                         <div v-else class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
                           画像未選択
@@ -296,6 +314,7 @@
                   <p class="text-xs text-slate-500 mt-1">印刷 / PDF保存用レイアウト</p>
                 </div>
                 <div class="text-xs text-slate-600 text-right">
+                  <div>対応日：<span class="font-semibold text-slate-800">{{ state.draft.date || '—' }}</span></div>
                   <div>開始：<span class="font-semibold text-slate-800">{{ state.draft.startTime || '—' }}</span></div>
                   <div>終了：<span class="font-semibold text-slate-800">{{ state.draft.endTime || '—' }}</span></div>
                 </div>
@@ -332,36 +351,41 @@
                 </section>
 
                 <section class="border border-slate-200 rounded-xl p-3">
-                  <h2 class="text-sm font-semibold text-slate-800">写真（最大10箇所）</h2>
+                  <h2 class="text-sm font-semibold text-slate-800">写真（作業前・作業後）</h2>
 
-                  <div class="mt-3 space-y-4">
-                    <div v-for="(item, idx) in state.draft.photos" :key="'r'+idx"
-                         class="border border-slate-200 rounded-xl overflow-hidden">
-                      <div class="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                        <div class="text-sm font-semibold text-slate-800">
-                          箇所 {{ idx + 1 }}：<span class="font-semibold">{{ item.place || '—' }}</span>
+                  <!-- 写真グリッド：A4で1/4幅程度、1ページに4〜6組目安 -->
+                  <div class="mt-3 grid grid-cols-2 gap-2">
+                    <template v-for="(item, idx) in state.draft.photos" :key="'pg'+idx">
+                      <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                        <div class="px-2 py-1 bg-slate-50 border-b border-slate-200">
+                          <div class="text-[11px] font-semibold text-slate-800 truncate">
+                            箇所 {{ idx + 1 }}：{{ item.place || '—' }}
+                          </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-0 border-b border-slate-200">
+                          <div class="p-1 border-r border-slate-200">
+                            <div class="text-[10px] text-slate-500 mb-1">作業前</div>
+                            <div v-if="item.before.dataUrl" class="rounded-md overflow-hidden border border-slate-200">
+                              <img :src="item.before.dataUrl" alt="作業前" class="photo-thumb">
+                            </div>
+                            <div v-else class="text-[11px] text-slate-400">—</div>
+                          </div>
+                          <div class="p-1">
+                            <div class="text-[10px] text-slate-500 mb-1">作業後</div>
+                            <div v-if="item.after.dataUrl" class="rounded-md overflow-hidden border border-slate-200">
+                              <img :src="item.after.dataUrl" alt="作業後" class="photo-thumb">
+                            </div>
+                            <div v-else class="text-[11px] text-slate-400">—</div>
+                          </div>
                         </div>
                       </div>
-
-                      <div class="grid grid-cols-1 sm:grid-cols-2">
-                        <div class="p-3 border-b sm:border-b-0 sm:border-r border-slate-200">
-                          <div class="text-xs text-slate-500 mb-2">作業前</div>
-                          <div v-if="item.before.dataUrl" class="border border-slate-200 rounded-lg overflow-hidden">
-                            <img :src="item.before.dataUrl" alt="作業前" class="w-full h-auto block">
-                          </div>
-                          <div v-else class="text-sm text-slate-500">—</div>
-                        </div>
-
-                        <div class="p-3">
-                          <div class="text-xs text-slate-500 mb-2">作業後</div>
-                          <div v-if="item.after.dataUrl" class="border border-slate-200 rounded-lg overflow-hidden">
-                            <img :src="item.after.dataUrl" alt="作業後" class="w-full h-auto block">
-                          </div>
-                          <div v-else class="text-sm text-slate-500">—</div>
-                        </div>
-                      </div>
-                    </div>
+                    </template>
                   </div>
+
+                  <p class="mt-2 text-[11px] text-slate-500">
+                    ※ 写真は「作業前・作業後」を横並びでコンパクトに配置します。
+                  </p>
                 </section>
 
                 <section class="border border-slate-200 rounded-xl p-3">
@@ -382,8 +406,16 @@
 
   <script>
     class App {
-      static masterKey = 'cleaning_report_master_v1';
-      static draftKey  = 'cleaning_report_draft_v1';
+      static masterKey = 'cleaning_report_master_v2';
+      static draftKey  = 'cleaning_report_draft_v2';
+
+      static todayISO() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
 
       static createEmptyState() {
         return {
@@ -392,7 +424,7 @@
             writers: [],
             participantsDefault: ''
           },
-          draft: App.createEmptyDraft(),
+          draft: App.createEmptyDraft(App.todayISO()),
           ui: {
             message: '',
             messageType: 'info'
@@ -400,7 +432,7 @@
         };
       }
 
-      static createEmptyDraft() {
+      static createEmptyDraft(defaultDateISO) {
         const photos = Array.from({ length: 10 }, () => ({
           place: '',
           before: { dataUrl: '', name: '' },
@@ -408,6 +440,7 @@
         }));
 
         return {
+          date: defaultDateISO || '',
           shopSelected: '',
           startTime: '',
           endTime: '',
@@ -461,15 +494,11 @@
             },
 
             syncMasterFromInputs() {
-              // 記入者履歴へ反映（保存時）
               const w = (this.state.draft.writer || '').trim();
               if (w) {
                 const writers = this.normalizeArrayUnique([...(this.state.master.writers || []), w]);
                 this.state.master.writers = writers;
               }
-
-              // 参加者は master.participantsDefault に直接バインド済み
-              // 店舗は addShop() で反映
             },
 
             addShop() {
@@ -517,7 +546,6 @@
 
             restoreAll() {
               try {
-                // master
                 const rawM = localStorage.getItem(App.masterKey);
                 if (rawM) {
                   const m = JSON.parse(rawM);
@@ -528,13 +556,13 @@
                   }
                 }
 
-                // draft
                 const rawD = localStorage.getItem(App.draftKey);
                 if (rawD) {
                   const d = JSON.parse(rawD);
                   if (d && typeof d === 'object') {
-                    const empty = App.createEmptyDraft();
+                    const empty = App.createEmptyDraft(App.todayISO());
 
+                    this.state.draft.date = (typeof d.date === 'string' && d.date) ? d.date : empty.date;
                     this.state.draft.shopSelected = (typeof d.shopSelected === 'string') ? d.shopSelected : empty.shopSelected;
                     this.state.draft.startTime = (typeof d.startTime === 'string') ? d.startTime : empty.startTime;
                     this.state.draft.endTime = (typeof d.endTime === 'string') ? d.endTime : empty.endTime;
@@ -557,14 +585,13 @@
                         this.state.draft.photos[i].after.name = (a.name || '');
                       }
                     }
-
-                    // 店舗がマスタに存在しない場合でも表示自体は許容（選択欄は空になる可能性）
                   }
+                } else {
+                  // draftが無ければ当日を入れておく（要件）
+                  this.state.draft.date = this.state.draft.date || App.todayISO();
                 }
 
-                if (rawM || rawD) {
-                  this.safeSetMessage('success', '保存データを復元しました。');
-                }
+                if (rawM || rawD) this.safeSetMessage('success', '保存データを復元しました。');
               } catch (err) {
                 alert('保存データの復元に失敗しました。');
                 this.safeSetMessage('error', '復元に失敗しました。');
@@ -575,11 +602,9 @@
               try {
                 this.syncMasterFromInputs();
 
-                // master 保存
                 const masterPayload = JSON.stringify(this.state.master);
                 localStorage.setItem(App.masterKey, masterPayload);
 
-                // draft 保存
                 const draftPayload = JSON.stringify(this.state.draft);
                 localStorage.setItem(App.draftKey, draftPayload);
 
@@ -591,17 +616,14 @@
             },
 
             clearReport() {
-              const ok = confirm('今回の報告内容（時間・店舗・写真・作業内容など）を消去します。店舗リスト/記入者履歴/参加者は残ります。よろしいですか？');
+              const ok = confirm('今回の報告内容（日付・時間・店舗・写真・作業内容など）を消去します。店舗リスト/参加者/記入者履歴は残ります。よろしいですか？');
               if (!ok) return;
 
               try {
                 localStorage.removeItem(App.draftKey);
-              } catch (err) {
-                // removeItem失敗でも画面側は初期化する
-              }
+              } catch (err) {}
 
-              // レポートのみ初期化（参加者は master 側）
-              this.state.draft = App.createEmptyDraft();
+              this.state.draft = App.createEmptyDraft(App.todayISO());
               this.safeSetMessage('success', '今回の報告内容をクリアしました（マスタ情報は保持）。');
             },
 
