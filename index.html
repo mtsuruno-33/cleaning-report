@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>清掃活動報告レポート作成ツール</title>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Vue.js (CDN) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .print-a4 {
+        box-shadow: none !important;
+        border: none !important;
+      }
+    }
+
+    input, textarea, button {
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+  <div id="app" class="min-h-screen">
+    <!-- Header -->
+    <header class="no-print sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">報</div>
+          <div>
+            <h1 class="text-base sm:text-lg font-semibold leading-tight">清掃活動報告レポート作成ツール</h1>
+            <p class="text-xs text-slate-500">スマホ入力→プレビュー→印刷（PDF保存）</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        <!-- Form -->
+        <section class="no-print">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-5">
+            <!-- Message -->
+            <div v-if="state.ui.message" class="rounded-xl px-3 py-2 text-sm border"
+                 :class="{
+                   'bg-emerald-50 border-emerald-200 text-emerald-800': state.ui.messageType==='success',
+                   'bg-rose-50 border-rose-200 text-rose-800': state.ui.messageType==='error',
+                   'bg-slate-50 border-slate-200 text-slate-700': state.ui.messageType==='info'
+                 }">
+              {{ state.ui.message }}
+            </div>
+
+            <!-- 店舗選択エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">店舗選択エリア</h2>
+
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">清掃店舗・事務所（選択）</span>
+                <select v-model="state.draft.shopSelected"
+                        class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400">
+                  <option value="">選択してください</option>
+                  <option v-for="(s, i) in state.master.shops" :key="s + '_' + i" :value="s">{{ s }}</option>
+                </select>
+              </label>
+
+              <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+                <label class="block">
+                  <span class="text-xs font-medium text-slate-600">新しい店舗（追加）</span>
+                  <input type="text" v-model.trim="shopNew" placeholder="例）○○店、△△事務所"
+                         class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+                </label>
+
+                <button type="button" @click="addShop"
+                        class="w-full sm:w-auto rounded-xl bg-slate-900 text-white px-4 py-3 text-base font-semibold active:scale-[0.99]">
+                  追加して選択
+                </button>
+              </div>
+
+              <p class="text-xs text-slate-500 leading-relaxed">
+                ※ 店舗リストは「一時保存」でブラウザに保存され、クリアしても残ります。
+              </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 時間入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">時間入力エリア</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="text-xs font-medium text-slate-600">開始時間</span>
+                  <input type="time" v-model="state.draft.startTime"
+                    class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+                </label>
+                <label class="block">
+                  <span class="text-xs font-medium text-slate-600">終了時間</span>
+                  <input type="time" v-model="state.draft.endTime"
+                    class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+                </label>
+              </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 記入者入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">記入者入力エリア</h2>
+
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">記入者（入力または履歴から選択）</span>
+                <input type="text" v-model.trim="state.draft.writer" list="writerList" placeholder="例）山田"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+                <datalist id="writerList">
+                  <option v-for="(w, i) in state.master.writers" :key="w + '_' + i" :value="w"></option>
+                </datalist>
+              </label>
+
+              <p class="text-xs text-slate-500 leading-relaxed">
+                ※ 記入者履歴は「一時保存」でブラウザに保存され、クリアしても残ります。
+              </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 参加者入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">参加者入力エリア</h2>
+
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">参加メンバー</span>
+                <textarea v-model="state.master.participantsDefault" rows="3"
+                  placeholder="例）Aさん、Bさん、Cさん"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"></textarea>
+              </label>
+
+              <p class="text-xs text-slate-500 leading-relaxed">
+                ※ 参加者はデフォルト保持され、クリアしても消えません（「一時保存」でブラウザに保存されます）。
+              </p>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 清掃概要入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">清掃概要入力エリア</h2>
+
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">前回の指摘事項</span>
+                <textarea v-model="state.draft.notes.previous" rows="3"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"></textarea>
+              </label>
+
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">作業の概要</span>
+                <textarea v-model="state.draft.notes.overview" rows="4"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"></textarea>
+              </label>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 写真登録エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">写真登録エリア（最大10箇所）</h2>
+
+              <div class="space-y-4">
+                <div v-for="(item, idx) in state.draft.photos" :key="idx"
+                     class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div class="flex items-center justify-between">
+                    <div class="text-sm font-semibold text-slate-800">箇所 {{ idx + 1 }}</div>
+                  </div>
+
+                  <label class="block mt-2">
+                    <span class="text-xs font-medium text-slate-600">箇所名</span>
+                    <input type="text" v-model.trim="item.place" placeholder="例）玄関前、駐車場、通路A"
+                      class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400" />
+                  </label>
+
+                  <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Before -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="text-sm font-semibold">作業前</div>
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm cursor-pointer select-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                          </svg>
+                          <span>撮影/選択</span>
+                          <input type="file" class="hidden" accept="image/*" capture="environment"
+                                 @change="onPickImage(idx, 'before', $event)" />
+                        </label>
+                      </div>
+
+                      <div class="mt-2 text-xs text-slate-500" v-if="item.before.name">{{ item.before.name }}</div>
+
+                      <div class="mt-2">
+                        <div v-if="item.before.dataUrl" class="rounded-xl overflow-hidden border border-slate-200">
+                          <img :src="item.before.dataUrl" alt="作業前" class="w-full h-auto block">
+                        </div>
+                        <div v-else class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                          画像未選択
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- After -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="text-sm font-semibold">作業後</div>
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm cursor-pointer select-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                          </svg>
+                          <span>撮影/選択</span>
+                          <input type="file" class="hidden" accept="image/*" capture="environment"
+                                 @change="onPickImage(idx, 'after', $event)" />
+                        </label>
+                      </div>
+
+                      <div class="mt-2 text-xs text-slate-500" v-if="item.after.name">{{ item.after.name }}</div>
+
+                      <div class="mt-2">
+                        <div v-if="item.after.dataUrl" class="rounded-xl overflow-hidden border border-slate-200">
+                          <img :src="item.after.dataUrl" alt="作業後" class="w-full h-auto block">
+                        </div>
+                        <div v-else class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                          画像未選択
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <!-- 次回課題入力エリア -->
+            <div class="space-y-3">
+              <h2 class="text-sm font-semibold text-slate-800">次回課題入力エリア</h2>
+              <label class="block">
+                <span class="text-xs font-medium text-slate-600">次回の課題</span>
+                <textarea v-model="state.draft.notes.next" rows="4"
+                  class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400"></textarea>
+              </label>
+            </div>
+
+            <!-- Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button type="button" @click="saveAll"
+                class="w-full rounded-xl bg-emerald-600 text-white py-3 text-base font-semibold active:scale-[0.99]">
+                一時保存
+              </button>
+              <button type="button" @click="printReport"
+                class="w-full rounded-xl bg-slate-900 text-white py-3 text-base font-semibold active:scale-[0.99]">
+                印刷
+              </button>
+              <button type="button" @click="clearReport"
+                class="w-full rounded-xl bg-rose-600 text-white py-3 text-base font-semibold active:scale-[0.99]">
+                クリア
+              </button>
+            </div>
+
+            <p class="text-xs text-slate-500 leading-relaxed">
+              ※ レポート内容はリロード時に復元できます（「一時保存」した場合）。<br>
+              ※ 画像が多い場合、LocalStorage容量制限で保存できないことがあります。その場合はアラートで通知します。
+            </p>
+          </div>
+        </section>
+
+        <!-- Preview -->
+        <section>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="no-print px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <h2 class="text-sm font-semibold text-slate-800">報告書表示エリア（プレビュー）</h2>
+              <span class="text-xs text-slate-500">入力内容がリアルタイム反映</span>
+            </div>
+
+            <article class="print-a4 p-4 sm:p-6" id="report">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h1 class="text-lg sm:text-xl font-bold tracking-tight">清掃活動報告書</h1>
+                  <p class="text-xs text-slate-500 mt-1">印刷 / PDF保存用レイアウト</p>
+                </div>
+                <div class="text-xs text-slate-600 text-right">
+                  <div>開始：<span class="font-semibold text-slate-800">{{ state.draft.startTime || '—' }}</span></div>
+                  <div>終了：<span class="font-semibold text-slate-800">{{ state.draft.endTime || '—' }}</span></div>
+                </div>
+              </div>
+
+              <div class="mt-4 border border-slate-200 rounded-xl overflow-hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2">
+                  <div class="px-3 py-2 border-b sm:border-b-0 sm:border-r border-slate-200">
+                    <div class="text-xs text-slate-500">清掃店舗・事務所</div>
+                    <div class="text-sm font-semibold text-slate-800 break-words">{{ state.draft.shopSelected || '—' }}</div>
+                  </div>
+                  <div class="px-3 py-2">
+                    <div class="text-xs text-slate-500">記入者</div>
+                    <div class="text-sm font-semibold text-slate-800 break-words">{{ state.draft.writer || '—' }}</div>
+                  </div>
+                </div>
+                <div class="border-t border-slate-200 px-3 py-2">
+                  <div class="text-xs text-slate-500">参加者</div>
+                  <div class="text-sm font-semibold text-slate-800 whitespace-pre-wrap break-words">
+                    {{ state.master.participantsDefault || '—' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 space-y-4">
+                <section class="border border-slate-200 rounded-xl p-3">
+                  <h2 class="text-sm font-semibold text-slate-800">前回の指摘事項</h2>
+                  <p class="mt-2 text-sm whitespace-pre-wrap text-slate-800">{{ state.draft.notes.previous || '—' }}</p>
+                </section>
+
+                <section class="border border-slate-200 rounded-xl p-3">
+                  <h2 class="text-sm font-semibold text-slate-800">作業の概要</h2>
+                  <p class="mt-2 text-sm whitespace-pre-wrap text-slate-800">{{ state.draft.notes.overview || '—' }}</p>
+                </section>
+
+                <section class="border border-slate-200 rounded-xl p-3">
+                  <h2 class="text-sm font-semibold text-slate-800">写真（最大10箇所）</h2>
+
+                  <div class="mt-3 space-y-4">
+                    <div v-for="(item, idx) in state.draft.photos" :key="'r'+idx"
+                         class="border border-slate-200 rounded-xl overflow-hidden">
+                      <div class="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div class="text-sm font-semibold text-slate-800">
+                          箇所 {{ idx + 1 }}：<span class="font-semibold">{{ item.place || '—' }}</span>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2">
+                        <div class="p-3 border-b sm:border-b-0 sm:border-r border-slate-200">
+                          <div class="text-xs text-slate-500 mb-2">作業前</div>
+                          <div v-if="item.before.dataUrl" class="border border-slate-200 rounded-lg overflow-hidden">
+                            <img :src="item.before.dataUrl" alt="作業前" class="w-full h-auto block">
+                          </div>
+                          <div v-else class="text-sm text-slate-500">—</div>
+                        </div>
+
+                        <div class="p-3">
+                          <div class="text-xs text-slate-500 mb-2">作業後</div>
+                          <div v-if="item.after.dataUrl" class="border border-slate-200 rounded-lg overflow-hidden">
+                            <img :src="item.after.dataUrl" alt="作業後" class="w-full h-auto block">
+                          </div>
+                          <div v-else class="text-sm text-slate-500">—</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="border border-slate-200 rounded-xl p-3">
+                  <h2 class="text-sm font-semibold text-slate-800">次回の課題</h2>
+                  <p class="mt-2 text-sm whitespace-pre-wrap text-slate-800">{{ state.draft.notes.next || '—' }}</p>
+                </section>
+              </div>
+
+              <div class="mt-6 pt-3 border-t border-slate-200 text-xs text-slate-500">
+                <div>この報告書はブラウザの印刷機能でPDF保存・印刷できます。</div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    class App {
+      static masterKey = 'cleaning_report_master_v1';
+      static draftKey  = 'cleaning_report_draft_v1';
+
+      static createEmptyState() {
+        return {
+          master: {
+            shops: ['本店', '事務所'],
+            writers: [],
+            participantsDefault: ''
+          },
+          draft: App.createEmptyDraft(),
+          ui: {
+            message: '',
+            messageType: 'info'
+          }
+        };
+      }
+
+      static createEmptyDraft() {
+        const photos = Array.from({ length: 10 }, () => ({
+          place: '',
+          before: { dataUrl: '', name: '' },
+          after:  { dataUrl: '', name: '' }
+        }));
+
+        return {
+          shopSelected: '',
+          startTime: '',
+          endTime: '',
+          writer: '',
+          notes: {
+            overview: '',
+            previous: '',
+            next: ''
+          },
+          photos
+        };
+      }
+
+      static async readFileAsDataURL(file) {
+        if (!file) return '';
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      static bootstrap() {
+        const { createApp } = Vue;
+
+        createApp({
+          data() {
+            return {
+              state: App.createEmptyState(),
+              shopNew: ''
+            };
+          },
+          methods: {
+            safeSetMessage(type, text) {
+              this.state.ui.messageType = type;
+              this.state.ui.message = text;
+            },
+
+            normalizeArrayUnique(arr) {
+              const set = new Set();
+              const out = [];
+              for (const v of arr) {
+                const s = (v || '').trim();
+                if (!s) continue;
+                if (set.has(s)) continue;
+                set.add(s);
+                out.push(s);
+              }
+              return out;
+            },
+
+            syncMasterFromInputs() {
+              // 記入者履歴へ反映（保存時）
+              const w = (this.state.draft.writer || '').trim();
+              if (w) {
+                const writers = this.normalizeArrayUnique([...(this.state.master.writers || []), w]);
+                this.state.master.writers = writers;
+              }
+
+              // 参加者は master.participantsDefault に直接バインド済み
+              // 店舗は addShop() で反映
+            },
+
+            addShop() {
+              const name = (this.shopNew || '').trim();
+              if (!name) {
+                alert('新しい店舗名を入力してください。');
+                return;
+              }
+
+              const current = Array.isArray(this.state.master.shops) ? this.state.master.shops : [];
+              const merged = this.normalizeArrayUnique([...current, name]);
+              this.state.master.shops = merged;
+              this.state.draft.shopSelected = name;
+              this.shopNew = '';
+              this.safeSetMessage('info', '店舗を追加しました（保存するには「一時保存」を押してください）。');
+            },
+
+            async onPickImage(index, which, event) {
+              try {
+                const input = event && event.target ? event.target : null;
+                const file = input && input.files && input.files[0] ? input.files[0] : null;
+                if (!file) return;
+
+                if (!file.type || !file.type.startsWith('image/')) {
+                  alert('画像ファイルを選択してください。');
+                  return;
+                }
+
+                const dataUrl = await App.readFileAsDataURL(file);
+
+                if (!this.state.draft.photos[index]) return;
+                if (which !== 'before' && which !== 'after') return;
+
+                this.state.draft.photos[index][which].dataUrl = dataUrl;
+                this.state.draft.photos[index][which].name = file.name || '';
+
+                if (input) input.value = '';
+
+                this.safeSetMessage('info', '画像を読み込みました（プレビューに反映）。');
+              } catch (err) {
+                alert('画像の読み込み中にエラーが発生しました。');
+                this.safeSetMessage('error', '画像の読み込みに失敗しました。');
+              }
+            },
+
+            restoreAll() {
+              try {
+                // master
+                const rawM = localStorage.getItem(App.masterKey);
+                if (rawM) {
+                  const m = JSON.parse(rawM);
+                  if (m && typeof m === 'object') {
+                    this.state.master.shops = this.normalizeArrayUnique(Array.isArray(m.shops) ? m.shops : this.state.master.shops);
+                    this.state.master.writers = this.normalizeArrayUnique(Array.isArray(m.writers) ? m.writers : this.state.master.writers);
+                    this.state.master.participantsDefault = (typeof m.participantsDefault === 'string') ? m.participantsDefault : this.state.master.participantsDefault;
+                  }
+                }
+
+                // draft
+                const rawD = localStorage.getItem(App.draftKey);
+                if (rawD) {
+                  const d = JSON.parse(rawD);
+                  if (d && typeof d === 'object') {
+                    const empty = App.createEmptyDraft();
+
+                    this.state.draft.shopSelected = (typeof d.shopSelected === 'string') ? d.shopSelected : empty.shopSelected;
+                    this.state.draft.startTime = (typeof d.startTime === 'string') ? d.startTime : empty.startTime;
+                    this.state.draft.endTime = (typeof d.endTime === 'string') ? d.endTime : empty.endTime;
+                    this.state.draft.writer = (typeof d.writer === 'string') ? d.writer : empty.writer;
+
+                    const dn = d.notes || {};
+                    this.state.draft.notes.overview = (typeof dn.overview === 'string') ? dn.overview : empty.notes.overview;
+                    this.state.draft.notes.previous = (typeof dn.previous === 'string') ? dn.previous : empty.notes.previous;
+                    this.state.draft.notes.next = (typeof dn.next === 'string') ? dn.next : empty.notes.next;
+
+                    if (Array.isArray(d.photos)) {
+                      for (let i = 0; i < this.state.draft.photos.length; i++) {
+                        const src = d.photos[i] || {};
+                        this.state.draft.photos[i].place = (src.place || '');
+                        const b = src.before || {};
+                        const a = src.after || {};
+                        this.state.draft.photos[i].before.dataUrl = (b.dataUrl || '');
+                        this.state.draft.photos[i].before.name = (b.name || '');
+                        this.state.draft.photos[i].after.dataUrl = (a.dataUrl || '');
+                        this.state.draft.photos[i].after.name = (a.name || '');
+                      }
+                    }
+
+                    // 店舗がマスタに存在しない場合でも表示自体は許容（選択欄は空になる可能性）
+                  }
+                }
+
+                if (rawM || rawD) {
+                  this.safeSetMessage('success', '保存データを復元しました。');
+                }
+              } catch (err) {
+                alert('保存データの復元に失敗しました。');
+                this.safeSetMessage('error', '復元に失敗しました。');
+              }
+            },
+
+            saveAll() {
+              try {
+                this.syncMasterFromInputs();
+
+                // master 保存
+                const masterPayload = JSON.stringify(this.state.master);
+                localStorage.setItem(App.masterKey, masterPayload);
+
+                // draft 保存
+                const draftPayload = JSON.stringify(this.state.draft);
+                localStorage.setItem(App.draftKey, draftPayload);
+
+                this.safeSetMessage('success', '一時保存しました（レポート＋マスタ情報）。');
+              } catch (err) {
+                alert('一時保存に失敗しました（画像が多い場合、容量制限で保存できないことがあります）。');
+                this.safeSetMessage('error', '一時保存に失敗しました。');
+              }
+            },
+
+            clearReport() {
+              const ok = confirm('今回の報告内容（時間・店舗・写真・作業内容など）を消去します。店舗リスト/記入者履歴/参加者は残ります。よろしいですか？');
+              if (!ok) return;
+
+              try {
+                localStorage.removeItem(App.draftKey);
+              } catch (err) {
+                // removeItem失敗でも画面側は初期化する
+              }
+
+              // レポートのみ初期化（参加者は master 側）
+              this.state.draft = App.createEmptyDraft();
+              this.safeSetMessage('success', '今回の報告内容をクリアしました（マスタ情報は保持）。');
+            },
+
+            printReport() {
+              try {
+                window.print();
+              } catch (err) {
+                alert('印刷の起動に失敗しました。');
+                this.safeSetMessage('error', '印刷の起動に失敗しました。');
+              }
+            }
+          },
+          mounted() {
+            this.restoreAll();
+          }
+        }).mount('#app');
+      }
+    }
+
+    App.bootstrap();
+  </script>
+</body>
+</html>
