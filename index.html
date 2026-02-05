@@ -12,21 +12,14 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
   <style>
-    @page {
-      size: A4;
-      margin: 12mm;
-    }
+    @page { size: A4; margin: 12mm; }
     @media print {
       .no-print { display: none !important; }
       body { background: #fff !important; }
-      .print-a4 {
-        box-shadow: none !important;
-        border: none !important;
-      }
+      .print-a4 { box-shadow: none !important; border: none !important; }
     }
     input, textarea, button { -webkit-tap-highlight-color: transparent; }
 
-    /* 印刷/プレビュー共通：写真を“コンパクト”に見せる */
     .photo-thumb {
       width: 100%;
       aspect-ratio: 4 / 3;
@@ -188,7 +181,7 @@
 
             <hr class="border-slate-200">
 
-            <!-- 写真登録エリア -->
+            <!-- 写真登録エリア（撮影/選択の2ボタン） -->
             <div class="space-y-3">
               <h2 class="text-sm font-semibold text-slate-800">写真登録エリア（最大10箇所）</h2>
 
@@ -210,16 +203,27 @@
                     <div class="bg-white rounded-2xl border border-slate-200 p-3">
                       <div class="flex items-center justify-between gap-2">
                         <div class="text-sm font-semibold">作業前</div>
-                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm cursor-pointer select-none">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
-                            <circle cx="12" cy="13" r="4"></circle>
-                          </svg>
-                          <span>撮影/選択</span>
-                          <input type="file" class="hidden" accept="image/*" capture="environment"
-                                 @change="onPickImage(idx, 'before', $event)" />
-                        </label>
+                        <div class="flex items-center gap-2">
+                          <button type="button" @click="triggerPickImage(idx,'before','camera')"
+                            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold active:scale-[0.99]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
+                              <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                            撮影
+                          </button>
+                          <button type="button" @click="triggerPickImage(idx,'before','file')"
+                            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-200 text-slate-900 text-sm font-semibold active:scale-[0.99]">
+                            選択
+                          </button>
+                        </div>
                       </div>
+
+                      <!-- hidden inputs -->
+                      <input :ref="`beforeCamera_${idx}`" type="file" class="hidden" accept="image/*" capture="environment"
+                             @change="onPickImage(idx, 'before', $event)" />
+                      <input :ref="`beforeFile_${idx}`" type="file" class="hidden" accept="image/*"
+                             @change="onPickImage(idx, 'before', $event)" />
 
                       <div class="mt-2 text-xs text-slate-500" v-if="item.before.name">{{ item.before.name }}</div>
 
@@ -237,16 +241,27 @@
                     <div class="bg-white rounded-2xl border border-slate-200 p-3">
                       <div class="flex items-center justify-between gap-2">
                         <div class="text-sm font-semibold">作業後</div>
-                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm cursor-pointer select-none">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
-                            <circle cx="12" cy="13" r="4"></circle>
-                          </svg>
-                          <span>撮影/選択</span>
-                          <input type="file" class="hidden" accept="image/*" capture="environment"
-                                 @change="onPickImage(idx, 'after', $event)" />
-                        </label>
+                        <div class="flex items-center gap-2">
+                          <button type="button" @click="triggerPickImage(idx,'after','camera')"
+                            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold active:scale-[0.99]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"></path>
+                              <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                            撮影
+                          </button>
+                          <button type="button" @click="triggerPickImage(idx,'after','file')"
+                            class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-200 text-slate-900 text-sm font-semibold active:scale-[0.99]">
+                            選択
+                          </button>
+                        </div>
                       </div>
+
+                      <!-- hidden inputs -->
+                      <input :ref="`afterCamera_${idx}`" type="file" class="hidden" accept="image/*" capture="environment"
+                             @change="onPickImage(idx, 'after', $event)" />
+                      <input :ref="`afterFile_${idx}`" type="file" class="hidden" accept="image/*"
+                             @change="onPickImage(idx, 'after', $event)" />
 
                       <div class="mt-2 text-xs text-slate-500" v-if="item.after.name">{{ item.after.name }}</div>
 
@@ -262,6 +277,10 @@
                   </div>
                 </div>
               </div>
+
+              <p class="text-xs text-slate-500 leading-relaxed">
+                ※ 各写真は「撮影（カメラ起動）」と「選択（ライブラリ）」を分けています。
+              </p>
             </div>
 
             <hr class="border-slate-200">
@@ -353,7 +372,6 @@
                 <section class="border border-slate-200 rounded-xl p-3">
                   <h2 class="text-sm font-semibold text-slate-800">写真（作業前・作業後）</h2>
 
-                  <!-- 写真グリッド：A4で1/4幅程度、1ページに4〜6組目安 -->
                   <div class="mt-3 grid grid-cols-2 gap-2">
                     <template v-for="(item, idx) in state.draft.photos" :key="'pg'+idx">
                       <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -406,8 +424,8 @@
 
   <script>
     class App {
-      static masterKey = 'cleaning_report_master_v2';
-      static draftKey  = 'cleaning_report_draft_v2';
+      static masterKey = 'cleaning_report_master_v3';
+      static draftKey  = 'cleaning_report_draft_v3';
 
       static todayISO() {
         const d = new Date();
@@ -516,6 +534,21 @@
               this.safeSetMessage('info', '店舗を追加しました（保存するには「一時保存」を押してください）。');
             },
 
+            triggerPickImage(index, which, mode) {
+              try {
+                const key = `${which}${mode === 'camera' ? 'Camera' : 'File'}_${index}`;
+                const el = this.$refs[key];
+                const input = Array.isArray(el) ? el[0] : el;
+                if (!input) {
+                  alert('画像入力の起動に失敗しました。');
+                  return;
+                }
+                input.click();
+              } catch (err) {
+                alert('画像入力の起動に失敗しました。');
+              }
+            },
+
             async onPickImage(index, which, event) {
               try {
                 const input = event && event.target ? event.target : null;
@@ -587,7 +620,6 @@
                     }
                   }
                 } else {
-                  // draftが無ければ当日を入れておく（要件）
                   this.state.draft.date = this.state.draft.date || App.todayISO();
                 }
 
@@ -602,11 +634,8 @@
               try {
                 this.syncMasterFromInputs();
 
-                const masterPayload = JSON.stringify(this.state.master);
-                localStorage.setItem(App.masterKey, masterPayload);
-
-                const draftPayload = JSON.stringify(this.state.draft);
-                localStorage.setItem(App.draftKey, draftPayload);
+                localStorage.setItem(App.masterKey, JSON.stringify(this.state.master));
+                localStorage.setItem(App.draftKey, JSON.stringify(this.state.draft));
 
                 this.safeSetMessage('success', '一時保存しました（レポート＋マスタ情報）。');
               } catch (err) {
@@ -619,9 +648,7 @@
               const ok = confirm('今回の報告内容（日付・時間・店舗・写真・作業内容など）を消去します。店舗リスト/参加者/記入者履歴は残ります。よろしいですか？');
               if (!ok) return;
 
-              try {
-                localStorage.removeItem(App.draftKey);
-              } catch (err) {}
+              try { localStorage.removeItem(App.draftKey); } catch (err) {}
 
               this.state.draft = App.createEmptyDraft(App.todayISO());
               this.safeSetMessage('success', '今回の報告内容をクリアしました（マスタ情報は保持）。');
